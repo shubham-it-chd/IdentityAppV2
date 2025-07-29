@@ -1,0 +1,39 @@
+sequenceDiagram
+  participant Client as Client
+  participant AuthController as AuthController
+  participant CallbackController as CallbackController
+  participant AuthService as AuthService
+  participant OktaService as OktaService
+  participant OKTA as OKTA
+  participant Database as Database
+
+  Client ->> AuthController: GET /api/auth/login
+  Note over Client: {emailId,applicationId, returnUrl}
+  AuthController ->> AuthService: InitiateOAuthAsync(applicationId)
+  AuthService ->> OktaService: GenerateAuthorizationUrl()
+  OktaService -->> AuthService: OKTA Authorization URL
+  AuthService -->> AuthController: Redirect URL
+  AuthController -->> Client: 302 Redirect to OKTA
+  Client ->> OKTA: OAuth2.0 Authentication
+  Note over Client, OKTA: User authenticates with OKTA
+  OKTA -->> Client: 302 Redirect to Callback URL
+  Client ->> CallbackController: GET /api/auth/callback
+  Note over Client: {code, state}
+  CallbackController ->> AuthService: ProcessCallbackAsync(code, state)
+  AuthService ->> OktaService: ExchangeCodeForToken(code)
+  OktaService ->> OKTA: POST /oauth2/v1/token
+  OKTA -->> OktaService: Access Token + ID Token
+  AuthService ->> OktaService: GetUserClaims(accessToken)
+  OktaService ->> OKTA: GET /oauth2/v1/userinfo
+  OKTA -->> OktaService: User Claims
+  OktaService -->> AuthService: User Claims
+  Note over AuthService: Generate JWT with OKTA claims
+  AuthService ->> AuthService: GenerateJWTToken(claims, applicationId)
+  AuthService ->> AuthService: GenerateRefreshToken()
+  AuthService ->> Database: Store RefreshToken & UserClaims
+  Database -->> AuthService: Success
+  AuthService -->> CallbackController: JWT Token Response
+  CallbackController -->> Client: {accessToken, refreshToken, expiresIn}
+  Note over Client: Client stores JWT token and uses for subsequent requests
+
+

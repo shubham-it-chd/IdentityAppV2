@@ -1,0 +1,161 @@
+---
+config:
+  layout: dagre
+---
+flowchart TB
+ subgraph ClientApps["Client Applications"]
+    direction LR
+        A1["Web App 1"]
+        A2["Mobile App"]
+        A3["Web App 2"]
+        A4["API Client"]
+  end
+ subgraph Controllers["Controllers"]
+        AC["AuthController"]
+        CC["CallbackController"]
+  end
+ subgraph Services["Services"]
+    direction LR
+        AS["AuthService"]
+        OS["OktaService"]
+  end
+ subgraph AuthServiceActions["AuthService Actions"]
+    direction LR
+        AGTK["Generate JWT Token"]
+        ARTK["Refresh Token"]
+        AVTK["Validate Token"]
+        ARVK["Revoke Token"]
+        AFC["Fetch Claims from OKTA"]
+  end
+ subgraph ExternalAuth["External Authentication"]
+    direction LR
+        OKTA["OKTA Identity Provider"]
+        OAUTH["OAuth 2.0 Authorization Code Flow"]
+        SAML["SAML (Optional)"]
+  end
+ subgraph DataLayer["Data Layer"]
+    direction LR
+        DB["ApplicationDbContext"]
+        EF["ORM"]
+  end
+ subgraph Auth["Authentication"]
+        ID["ASP.NET Identity"]
+        JWT["JWT Bearer Authentication"]
+  end
+ subgraph IdentityApp["Identity SSO Application"]
+    direction TB
+        Controllers
+        Services
+        AuthServiceActions
+        DataLayer
+        Auth
+  end
+ subgraph Tables["Tables"]
+    direction LR
+        RTT["UserTokenMap"]
+        AT["Applications"]
+        UCT["UserClaims"]
+  end
+ subgraph Database["Database"]
+    direction LR
+        SQL[("SQL Server")]
+        Tables
+  end
+ subgraph DBCleanup["DB Cleanup"]
+    direction TB
+        RemoveRecordFromDB["Remove Record From DB"]
+        DBCleanupJob["Run every 12 to 17 hours"]
+  end
+ subgraph LogoutFlow["Logout Process"]
+    direction TB
+        RevokeToken["Revoke Token"]
+        OktaLogout["OKTA Logout"]
+        Logout["User Logout"]
+        DeleteFromDB["Remove from Database"]
+  end
+ subgraph ValidationFlow["Validation Process"]
+    direction TB
+        TokenCheck["JWT Token Check"]
+        Validate["Validate JWT Token"]
+        ExpiryCheck["Token Expiry and Signature Check"]
+        ResponseTokenInValid["Response Token Invalid"]
+        ResponseTokenValid["Response Token Valid"]
+  end
+ subgraph RefreshFlow["Refresh Process"]
+    direction TB
+        RefreshTokenCheck["Refresh Token Check"]
+        RefreshTokenRequest["Refresh Token"]
+        RefreshGenerateNew["Generate New JWT Token"]
+        RefreshDBInsert["Store in Database"]
+        RefreshReturnToken["Return Fresh JWT Token"]
+        ReloadApp["Ask User to Reload App"]
+  end
+ subgraph OAuthFlow["OAuth Authorization Code Flow"]
+    direction TB
+        InitiateAuth["Initiate OAuth"]
+        RedirectToOkta["Redirect to OKTA"]
+        UserAuth["User Authenticates"]
+        AuthCode["Authorization Code"]
+        TokenExchange["Exchange Code for OKTA Tokens"]
+        FetchClaims["Fetch User Claims"]
+        GenerateJWT["Generate JWT Token"]
+        ReturnJWT["Return JWT to Client"]
+  end
+ subgraph LoginFlow["Login Process"]
+    direction TB
+        CheckExisting["Check Existing Token"]
+        StartOAuth["Start OAuth Flow"]
+        ProcessCallback["Process Callback"]
+        ClaimsToJWT["Convert Claims to JWT"]
+        DBInsert["Store Refresh Token"]
+        ReturnToken["Return JWT Token"]
+  end
+ subgraph TokenLifecycle["Token Lifecycle"]
+    direction TB
+        DBCleanup
+        LogoutFlow
+        ValidationFlow
+        RefreshFlow
+        OAuthFlow
+        LoginFlow
+  end
+    DBCleanupJob -- Refresh Token Expired --> RemoveRecordFromDB
+    A1 --> AC
+    A2 --> AC
+    A3 --> AC
+    A4 --> AC
+    AC --> AS
+    CC --> AS
+    AS --> OS & AuthServiceActions
+    OS --> OKTA
+    OKTA --> OAUTH & SAML
+    AuthServiceActions --> DB & ID & JWT
+    DB --> EF
+    EF --> SQL
+    SQL --- RTT & AT & UCT
+    Logout --> RevokeToken
+    RevokeToken --> OktaLogout
+    OktaLogout --> DeleteFromDB
+    Validate --> TokenCheck
+    TokenCheck -- Token exists --> ExpiryCheck
+    TokenCheck -- No token --> ResponseTokenInValid
+    ExpiryCheck -- Expired or Invalid --> ResponseTokenInValid
+    ExpiryCheck -- Valid --> ResponseTokenValid
+    RefreshTokenRequest -- Auto Request every 5min --> RefreshTokenCheck
+    RefreshTokenCheck -- Token exists --> RefreshGenerateNew
+    RefreshGenerateNew --> RefreshDBInsert
+    RefreshDBInsert --> RefreshReturnToken
+    RefreshTokenCheck -- No token --> ReloadApp
+    StartOAuth --> InitiateAuth
+    InitiateAuth --> RedirectToOkta
+    RedirectToOkta --> UserAuth
+    UserAuth --> AuthCode
+    AuthCode --> CC
+    ProcessCallback --> TokenExchange
+    TokenExchange --> FetchClaims
+    FetchClaims --> GenerateJWT
+    GenerateJWT --> ClaimsToJWT
+    ClaimsToJWT --> DBInsert
+    DBInsert --> ReturnToken
+    CheckExisting -- Token exists --> ValidationFlow
+    CheckExisting -- No token --> StartOAuth
