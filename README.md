@@ -351,3 +351,9 @@ This project is licensed under the MIT License.
 Import-PfxCertificate -FilePath "C:\path\to\your\certificate.pfx" -CertStoreLocation Cert:\LocalMachine\My -Password (ConvertTo-SecureString "your-certificate-password" -AsPlainText -Force)
 
 Import-PfxCertificate -FilePath "C:\path\to\your\certificate.pfx" -CertStoreLocation Cert:\CurrentUser\My -Password (ConvertTo-SecureString "your-certificate-password" -AsPlainText -Force)
+
+RUN powershell -Command \
+    $password = Get-Content "C:\app\cert.pw" | ConvertTo-SecureString -AsPlainText -Force; \
+    Import-PfxCertificate -FilePath "C:\app\certificate.pfx" -CertStoreLocation Cert:\LocalMachine\My -Password $password; \
+    Remove-Item -Path "C:\app\certificate.pfx", "C:\app\cert.pw" -Force
+    
