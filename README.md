@@ -348,6 +348,7 @@ Check application logs for detailed error information:
 
 This project is licensed under the MIT License. 
 
+## Cert Instalation
 Import-PfxCertificate -FilePath "C:\path\to\your\certificate.pfx" -CertStoreLocation Cert:\LocalMachine\My -Password (ConvertTo-SecureString "your-certificate-password" -AsPlainText -Force)
 
 Import-PfxCertificate -FilePath "C:\path\to\your\certificate.pfx" -CertStoreLocation Cert:\CurrentUser\My -Password (ConvertTo-SecureString "your-certificate-password" -AsPlainText -Force)
@@ -356,4 +357,38 @@ RUN powershell -Command \
     $password = Get-Content "C:\app\cert.pw" | ConvertTo-SecureString -AsPlainText -Force; \
     Import-PfxCertificate -FilePath "C:\app\certificate.pfx" -CertStoreLocation Cert:\LocalMachine\My -Password $password; \
     Remove-Item -Path "C:\app\certificate.pfx", "C:\app\cert.pw" -Force
+## Asp Net Core Data Protection
+- 1. 
+services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(@"C:\Keys"))
+    .ProtectKeysWithCertificate("YOUR_THUMBPRINT_HERE");
+
+
+- 2. 
+var store = new X509Store(StoreName.My, StoreLocation.LocalMachine);
+store.Open(OpenFlags.ReadOnly);
+
+var cert = store.Certificates
+    .Find(X509FindType.FindByThumbprint, "YOUR_THUMBPRINT_HERE", validOnly: false)
+    .OfType<X509Certificate2>()
+    .FirstOrDefault();
+
+if (cert == null)
+    throw new Exception("Certificate not found");
+
+services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(@"C:\Keys"))
+    .ProtectKeysWithCertificate(cert);
+    
+- 3. 
+$thumbprint = "YOUR_THUMBPRINT_HERE"
+$user = "IIS AppPool\YourAppPoolName"  # Or your custom Windows user
+
+$cert = Get-ChildItem -Path Cert:\LocalMachine\My | Where-Object { $_.Thumbprint -eq $thumbprint }
+$cert | Set-Acl -AclObject (Get-Acl -Path "Cert:\LocalMachine\My\$thumbprint")
+
+certutil -store My "YOUR_THUMBPRINT_HERE"
+
+### Run the Application as Administrator (Testing Only)
+
     
