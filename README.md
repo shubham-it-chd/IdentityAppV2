@@ -347,3 +347,7 @@ Check application logs for detailed error information:
 ## License
 
 This project is licensed under the MIT License. 
+
+Import-PfxCertificate -FilePath "C:\path\to\your\certificate.pfx" -CertStoreLocation Cert:\LocalMachine\My -Password (ConvertTo-SecureString "your-certificate-password" -AsPlainText -Force)
+
+Import-PfxCertificate -FilePath "C:\path\to\your\certificate.pfx" -CertStoreLocation Cert:\CurrentUser\My -Password (ConvertTo-SecureString "your-certificate-password" -AsPlainText -Force)
